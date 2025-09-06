@@ -3,8 +3,16 @@ test_mirror_speed() {
     local url="$1"
     local timeout=5
     if command -v curl &> /dev/null; then
+        local cmd="curl -o /dev/null -s -w '%{time_total}' --connect-timeout ${timeout} --max-time ${timeout} '${url}'"
+        if [[ "${VERBOSE}" == "true" ]]; then
+            echo -e "${BLUE}[CMD]${NC} ${cmd}" >&2
+        fi
         curl -o /dev/null -s -w "%{time_total}" --connect-timeout ${timeout} --max-time ${timeout} "${url}" 2>/dev/null
     else
+        local cmd="wget -O /dev/null -T ${timeout} --tries=1 '${url}'"
+        if [[ "${VERBOSE}" == "true" ]]; then
+            echo -e "${BLUE}[CMD]${NC} ${cmd}" >&2
+        fi
         wget -O /dev/null -T ${timeout} --tries=1 "${url}" 2>&1 | grep -oP 'Downloaded: .*\(\K[^)]+' | head -1
     fi
 }
@@ -16,10 +24,13 @@ find_fastest_mirror() {
     log "Testing mirror speeds..."
     for mirror in "${mirrors[@]}"; do
         debug "Testing mirror: ${mirror}"
-        local time=$(test_mirror_speed "${mirror}" 2>/dev/null || echo "")
+        local time=$(test_mirror_speed "${mirror}" || echo "")
         if [[ -n "${time}" ]] && (( $(echo "${time} < ${fastest_time}" | bc -l 2>/dev/null || echo 0) )); then
             fastest_time="${time}"
             fastest_mirror="${mirror}"
+            if [[ "${VERBOSE}" == "true" ]]; then
+                debug "Mirror response time: ${time}s"
+            fi
         fi
     done
     if [[ -n "${fastest_mirror}" ]]; then
@@ -184,11 +195,7 @@ extract_archive() {
             ;;
     esac
     
-    if [[ "${VERBOSE}" == "true" ]]; then
-        echo -e "${BLUE}[CMD]${NC} ${extract_cmd}"
-    fi
-    
-    eval "${extract_cmd}"
+    run_command "${tool_name}" "extract" "${extract_cmd}"
     if [[ $? -eq 0 ]]; then
         log "Successfully extracted ${file}"
         return 0

@@ -78,6 +78,9 @@ create_versioned_install() {
     local version="$2"
     local install_dir="${TOOLS_PREFIX}/${tool}-${version}"
     if [[ -d "${install_dir}" ]]; then
+        if [[ "${VERBOSE}" == "true" ]]; then
+            echo -e "${BLUE}[CMD]${NC} ln -sfn '${install_dir}' '${TOOLS_PREFIX}/${tool}'"
+        fi
         ln -sfn "${install_dir}" "${TOOLS_PREFIX}/${tool}"
         log "Created symlink: ${TOOLS_PREFIX}/${tool} -> ${install_dir}"
     fi
@@ -87,10 +90,16 @@ uninstall_tool() {
     local tool="$1"
     if [[ -L "${TOOLS_PREFIX}/${tool}" ]]; then
         local install_dir=$(readlink "${TOOLS_PREFIX}/${tool}")
+        if [[ "${VERBOSE}" == "true" ]]; then
+            echo -e "${BLUE}[CMD]${NC} rm -f '${TOOLS_PREFIX}/${tool}'"
+        fi
         rm -f "${TOOLS_PREFIX}/${tool}"
         read -p "Remove installation directory ${install_dir}? (y/N) " -n 1 -r
         echo
         if [[ $REPLY =~ ^[Yy]$ ]]; then
+            if [[ "${VERBOSE}" == "true" ]]; then
+                echo -e "${BLUE}[CMD]${NC} rm -rf '${install_dir}'"
+            fi
             rm -rf "${install_dir}"
             log "Removed ${install_dir}"
         fi

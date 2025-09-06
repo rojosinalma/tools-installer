@@ -1,8 +1,8 @@
 #!/bin/bash
 set -e
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-TOOLS_PREFIX="${HOME}/tools"
-LOCAL_PREFIX="${TOOLS_PREFIX}"
+export SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+export TOOLS_PREFIX="${HOME}/tools"
+export LOCAL_PREFIX="${TOOLS_PREFIX}"
 
 source "${SCRIPT_DIR}/lib/common.sh"
 source "${SCRIPT_DIR}/lib/download.sh"
@@ -14,30 +14,6 @@ mkdir -p "${SCRIPT_DIR}/downloads"
 mkdir -p "${SCRIPT_DIR}/build"
 mkdir -p "${SCRIPT_DIR}/logs"
 mkdir -p "${TOOLS_PREFIX}"
-
-COMMAND="${1:-help}"
-TARGET="${2:-}"
-VERBOSE=false
-CUSTOM_VERSION=""
-
-# Parse arguments
-i=1
-while [[ $i -le $# ]]; do
-    case "${!i}" in
-        --verbose)
-            VERBOSE=true
-            ;;
-        --version)
-            # Get next argument as version
-            next_i=$((i+1))
-            if [[ ${next_i} -le $# ]]; then
-                CUSTOM_VERSION="${!next_i}"
-                i=$((i+1))  # Skip next argument since we consumed it
-            fi
-            ;;
-    esac
-    i=$((i+1))
-done
 
 show_help() {
     cat << HELP
@@ -69,7 +45,8 @@ Clean Targets:
     all              Remove all of the above
 
 Options:
-    --verbose        Show detailed command output
+    -h, --help       Show this help message
+    -v, --verbose    Show detailed command output
     --version VER    Override tool version (download only)
 
 Examples:
@@ -84,6 +61,34 @@ Examples:
     ./installer clean all
 HELP
 }
+
+COMMAND="${1:-help}"
+TARGET="${2:-}"
+export VERBOSE=false
+CUSTOM_VERSION=""
+
+# Parse arguments
+i=1
+while [[ $i -le $# ]]; do
+    case "${!i}" in
+        --help|-h)
+            show_help
+            exit 0
+            ;;
+        --verbose|-v)
+            VERBOSE=true
+            ;;
+        --version)
+            # Get next argument as version
+            next_i=$((i+1))
+            if [[ ${next_i} -le $# ]]; then
+                CUSTOM_VERSION="${!next_i}"
+                i=$((i+1))  # Skip next argument since we consumed it
+            fi
+            ;;
+    esac
+    i=$((i+1))
+done
 
 list_tools() {
     echo "=== Available Tools ==="
