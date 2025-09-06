@@ -1,0 +1,106 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Project Overview
+
+This is a comprehensive toolkit installer for Debian 9 systems that builds essential development tools without root access. The installer downloads, compiles, and installs tools to `~/tools/` with automatic dependency resolution, parallel compilation, and rollback capabilities.
+
+## Common Commands
+
+### Main Operations
+```bash
+./installer.sh help          # Show help and available commands
+./installer.sh list          # List all available tools and their status
+./installer.sh download all  # Download all tool sources without building
+./installer.sh install all   # Install all tools in phases
+./installer.sh status        # Check installation status of all tools
+./installer.sh test [TOOL]   # Test if a specific tool is working
+./installer.sh uninstall TOOL  # Remove a specific tool
+```
+
+### Download and Installation Targets
+```bash
+./installer.sh download phase1    # Download Phase 1 sources (cmake, ninja, python)
+./installer.sh download phase2    # Download Phase 2 sources (gcc, make, openssl, etc.)
+./installer.sh download phase3    # Download Phase 3 sources (zlib, libffi, etc.)
+./installer.sh download cmake     # Download specific tool source
+
+./installer.sh install phase1    # Pre-compiled binaries (cmake, ninja, python)
+./installer.sh install phase2    # Build tools (gcc, make, openssl, etc.)
+./installer.sh install phase3    # Essential libraries (zlib, libffi, etc.)
+./installer.sh install cmake     # Install specific tool
+```
+
+### Version Override (Download Only)
+```bash
+./installer.sh download cmake --version 3.25.0      # Download specific cmake version
+./installer.sh download gcc --version 11.4.0        # Download specific gcc version
+./installer.sh download phase1 --version 3.26.0     # Apply version to all Phase 1 tools (not recommended)
+```
+
+### Debugging
+```bash
+./installer.sh download all --verbose # Show detailed download progress
+./installer.sh install all --verbose  # Show detailed command output
+tail -f logs/install.log              # Monitor installation progress
+tail -f logs/debug.log                # View debug information
+tail -f logs/download.log             # Monitor download progress
+```
+
+## Architecture
+
+### Directory Structure
+- `installer.sh` - Main entry point and command dispatcher
+- `config/` - Configuration files (versions.conf, mirrors.conf)
+- `lib/` - Reusable library functions (common, build, download, test)
+- `installers/` - Individual tool installation scripts
+- `downloads/` - Downloaded source tarballs (created during install)
+- `build/` - Temporary build directories (created during install)
+- `logs/` - Installation and debug logs (created during install)
+
+### Key Components
+
+#### Configuration System
+- `config/versions.conf` - Tool versions and download URLs
+- `config/mirrors.conf` - Mirror URLs for speed testing
+
+#### Library Functions
+- `lib/common.sh` - Logging, disk space checks, CPU detection
+- `lib/build.sh` - Build functions (configure, make, cmake)
+- `lib/download.sh` - Download with mirror selection and checksums
+- `lib/test.sh` - Tool verification functions
+
+#### Installation Phases
+1. **Phase 1**: Pre-compiled binaries (cmake, ninja, python)
+2. **Phase 2**: Build from source tools (gcc, binutils, make, openssl, etc.)  
+3. **Phase 3**: Essential libraries (zlib, libffi, readline, etc.)
+
+### Build System
+- Uses parallel compilation (`-j$(nproc)`)
+- Installs to versioned directories (e.g., `~/tools/gcc-10.5.0/`)
+- Creates symlinks for current versions (e.g., `~/tools/gcc -> gcc-10.5.0`)
+- Comprehensive logging to `logs/build.log` and `logs/debug.log`
+
+### Tool Testing
+Each tool has verification tests in `lib/test.sh` that check basic functionality:
+```bash
+./installer.sh test gcc    # Test GCC installation
+./installer.sh test all    # Test all installed tools
+```
+
+## Environment Setup
+
+Tools are installed to `~/tools/` with the following structure:
+```
+~/tools/
+├── cmake -> cmake-3.27.9/
+├── gcc -> gcc-10.5.0/
+├── python -> python-3.11.8/
+└── ...
+```
+
+To use installed tools, add to PATH:
+```bash
+export PATH="$HOME/tools/cmake/bin:$HOME/tools/gcc/bin:$HOME/tools/python/bin:$PATH"
+```

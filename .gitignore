@@ -1,0 +1,43 @@
+# Build directories
+build/
+*.tmp
+
+# Downloaded sources
+downloads/*.tar.gz
+downloads/*.tar.xz
+downloads/*.zip
+downloads/*.conda
+downloads/*.tar.bz2
+downloads/*.tgz
+
+# Log files
+logs/
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+.DS_Store
+*~
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Cache files
+*.cache
+.cache/
+
+# Backup files
+*.bak
+*.backup
+
+# OS generated files
+Thumbs.db
+ehthumbs.db
+
+# Claude Code files
+.claude/
