@@ -52,9 +52,10 @@ This is a comprehensive toolkit installer for Debian 9 systems that builds essen
 ```bash
 ./installer download all --verbose # Show detailed download progress
 ./installer install all --verbose  # Show detailed command output
-tail -f logs/install.log              # Monitor installation progress
+tail -f logs/cmake-download.log       # Monitor cmake download progress
+tail -f logs/gcc-build.log            # Monitor gcc build progress
 tail -f logs/debug.log                # View debug information
-tail -f logs/download.log             # Monitor download progress
+ls logs/                              # List all per-tool log files
 ```
 
 ## Architecture
@@ -66,7 +67,7 @@ tail -f logs/download.log             # Monitor download progress
 - `installers/` - Individual tool installation scripts
 - `downloads/` - Downloaded source tarballs (created during install)
 - `build/` - Temporary build directories (created during install)
-- `logs/` - Installation and debug logs (created during install)
+- `logs/` - Per-tool installation, download, and build logs (created during install)
 
 ### Key Components
 
@@ -89,7 +90,7 @@ tail -f logs/download.log             # Monitor download progress
 - Uses parallel compilation (`-j$(nproc)`)
 - Installs to versioned directories (e.g., `~/tools/gcc-10.5.0/`)
 - Creates symlinks for current versions (e.g., `~/tools/gcc -> gcc-10.5.0`)
-- Comprehensive logging to `logs/build.log` and `logs/debug.log`
+- Comprehensive per-tool logging (e.g., `logs/gcc-build.log`, `logs/cmake-download.log`) and `logs/debug.log`
 
 ### Tool Testing
 Each tool has verification tests in `lib/test.sh` that check basic functionality:

@@ -16,7 +16,7 @@ find_fastest_mirror() {
     log "Testing mirror speeds..."
     for mirror in "${mirrors[@]}"; do
         debug "Testing mirror: ${mirror}"
-        local time=$(test_mirror_speed "${mirror}")
+        local time=$(test_mirror_speed "${mirror}" 2>/dev/null || echo "")
         if [[ -n "${time}" ]] && (( $(echo "${time} < ${fastest_time}" | bc -l 2>/dev/null || echo 0) )); then
             fastest_time="${time}"
             fastest_mirror="${mirror}"
@@ -26,6 +26,7 @@ find_fastest_mirror() {
         log "Fastest mirror: ${fastest_mirror} (response time: ${fastest_time}s)"
         echo "${fastest_mirror}"
     else
+        log "No mirrors responded, using first mirror: ${mirrors[0]}"
         echo "${mirrors[0]}"
     fi
 }
@@ -46,7 +47,7 @@ get_best_mirror_url() {
         for mirror in "${mirrors[@]}"; do
             test_mirrors+=("${mirror}${path}")
         done
-        echo "$(find_fastest_mirror "${test_mirrors[@]}")"
+        find_fastest_mirror "${test_mirrors[@]}"
     elif [[ "${original_url}" == *"github.com"* ]]; then
         mirrors=("${GITHUB_MIRRORS[@]}")
         local path="${original_url#*github.com}"
@@ -58,7 +59,7 @@ get_best_mirror_url() {
                 test_mirrors+=("${mirror}${path}")
             fi
         done
-        echo "$(find_fastest_mirror "${test_mirrors[@]}")"
+        find_fastest_mirror "${test_mirrors[@]}"
     elif [[ "${original_url}" == *"conda.anaconda.org"* || "${original_url}" == *"repo.anaconda.com"* ]]; then
         mirrors=("${CONDA_MIRRORS[@]}")
         local path
@@ -71,7 +72,7 @@ get_best_mirror_url() {
         for mirror in "${mirrors[@]}"; do
             test_mirrors+=("${mirror}${path}")
         done
-        echo "$(find_fastest_mirror "${test_mirrors[@]}")"
+        find_fastest_mirror "${test_mirrors[@]}"
     elif [[ "${original_url}" == *"openssl.org/source"* ]]; then
         mirrors=("${OPENSSL_MIRRORS[@]}")
         local path="${original_url#*openssl.org/source}"
@@ -79,7 +80,7 @@ get_best_mirror_url() {
         for mirror in "${mirrors[@]}"; do
             test_mirrors+=("${mirror}${path}")
         done
-        echo "$(find_fastest_mirror "${test_mirrors[@]}")"
+        find_fastest_mirror "${test_mirrors[@]}"
     elif [[ "${original_url}" == *"zlib.net"* ]]; then
         mirrors=("${ZLIB_MIRRORS[@]}")
         local filename=$(basename "${original_url}")
@@ -92,7 +93,7 @@ get_best_mirror_url() {
                 test_mirrors+=("${mirror}/${filename}")
             fi
         done
-        echo "$(find_fastest_mirror "${test_mirrors[@]}")"
+        find_fastest_mirror "${test_mirrors[@]}"
     elif [[ "${original_url}" == *"sourceware.org/pub"* ]]; then
         mirrors=("${SOURCEWARE_MIRRORS[@]}")
         local path="${original_url#*sourceware.org/pub}"
@@ -100,7 +101,7 @@ get_best_mirror_url() {
         for mirror in "${mirrors[@]}"; do
             test_mirrors+=("${mirror}${path}")
         done
-        echo "$(find_fastest_mirror "${test_mirrors[@]}")"
+        find_fastest_mirror "${test_mirrors[@]}"
     else
         # No mirrors available, return original URL
         echo "${original_url}"
@@ -111,34 +112,45 @@ download_file() {
     local url="$1"
     local output="$2"
     local description="${3:-file}"
+    local tool_name="${4:-unknown}"
     
     # Get the best mirror URL
-    log "Selecting fastest mirror for ${description}..."
-    local best_url=$(get_best_mirror_url "${url}")
+    tool_log "${tool_name}" "Selecting fastest mirror for ${description}..." "download"
+    local best_url
+    best_url=$(get_best_mirror_url "${url}" | tail -n1) || {
+        tool_warn "${tool_name}" "Mirror selection failed, using original URL" "download"
+        best_url="${url}"
+    }
     
     if [[ "${best_url}" != "${url}" ]]; then
-        log "Using mirror: ${best_url}"
+        tool_log "${tool_name}" "Using mirror: ${best_url}" "download"
     fi
-    log "Downloading ${description}..."
+    tool_log "${tool_name}" "Downloading ${description}..." "download"
     mkdir -p "$(dirname "${output}")"
-    if [[ "${VERBOSE}" == "true" ]]; then
-        if command -v wget &> /dev/null; then
-            wget -c --progress=bar:force "${best_url}" -O "${output}" 2>&1 | tee -a "${SCRIPT_DIR}/logs/download.log"
+    
+    local download_result=0
+    
+    if command -v wget &> /dev/null; then
+        if [[ "${VERBOSE}" == "true" ]]; then
+            run_command "${tool_name}" "download" "wget -c --progress=bar:force '${best_url}' -O '${output}'"
         else
-            curl -L --progress-bar -C - "${best_url}" -o "${output}" 2>&1 | tee -a "${SCRIPT_DIR}/logs/download.log"
+            run_command "${tool_name}" "download" "wget -c -q '${best_url}' -O '${output}'"
         fi
+        download_result=$?
     else
-        if command -v wget &> /dev/null; then
-            wget -c -q "${best_url}" -O "${output}" 2>> "${SCRIPT_DIR}/logs/download.log"
+        if [[ "${VERBOSE}" == "true" ]]; then
+            run_command "${tool_name}" "download" "curl -L --progress-bar -C - '${best_url}' -o '${output}'"
         else
-            curl -L -s -C - "${best_url}" -o "${output}" 2>> "${SCRIPT_DIR}/logs/download.log"
+            run_command "${tool_name}" "download" "curl -L -s -C - '${best_url}' -o '${output}'"
         fi
+        download_result=$?
     fi
-    if [[ $? -eq 0 ]]; then
-        log "Successfully downloaded ${description}"
+    
+    if [[ ${download_result} -eq 0 ]]; then
+        tool_log "${tool_name}" "Successfully downloaded ${description}" "download"
         return 0
     else
-        error "Failed to download ${description}"
+        tool_error "${tool_name}" "Failed to download ${description}" "download"
         return 1
     fi
 }
@@ -146,28 +158,37 @@ download_file() {
 extract_archive() {
     local file="$1"
     local dest="$2"
+    local tool_name="${3:-unknown}"
     mkdir -p "${dest}"
+    
+    local extract_cmd=""
     case "${file}" in
         *.tar.gz|*.tgz)
-            tar -xzf "${file}" -C "${dest}" --strip-components=1
+            extract_cmd="tar -xzf '${file}' -C '${dest}' --strip-components=1"
             ;;
         *.tar.xz)
-            tar -xJf "${file}" -C "${dest}" --strip-components=1
+            extract_cmd="tar -xJf '${file}' -C '${dest}' --strip-components=1"
             ;;
         *.tar.bz2)
-            tar -xjf "${file}" -C "${dest}" --strip-components=1
+            extract_cmd="tar -xjf '${file}' -C '${dest}' --strip-components=1"
             ;;
         *.zip)
-            unzip -q "${file}" -d "${dest}"
+            extract_cmd="unzip -q '${file}' -d '${dest}'"
             ;;
         *.conda)
-            tar -xf "${file}" -C "${dest}"
+            extract_cmd="tar -xf '${file}' -C '${dest}'"
             ;;
         *)
             error "Unknown archive format: ${file}"
             return 1
             ;;
     esac
+    
+    if [[ "${VERBOSE}" == "true" ]]; then
+        echo -e "${BLUE}[CMD]${NC} ${extract_cmd}"
+    fi
+    
+    eval "${extract_cmd}"
     if [[ $? -eq 0 ]]; then
         log "Successfully extracted ${file}"
         return 0

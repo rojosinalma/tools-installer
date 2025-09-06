@@ -2,26 +2,20 @@
 configure_build() {
     local src_dir="$1"
     local prefix="$2"
-    shift 2
+    local tool_name="${3:-unknown}"
+    shift 3
     local extra_args="$@"
     cd "${src_dir}"
-    if [[ "${VERBOSE}" == "true" ]]; then
-        ./configure --prefix="${prefix}" ${extra_args} 2>&1 | tee -a "${SCRIPT_DIR}/logs/build.log"
-    else
-        ./configure --prefix="${prefix}" ${extra_args} >> "${SCRIPT_DIR}/logs/build.log" 2>&1
-    fi
+    run_command "${tool_name}" "build" "./configure --prefix='${prefix}' ${extra_args}"
     return $?
 }
 
 run_make() {
     local target="${1:-}"
+    local tool_name="${2:-unknown}"
     local jobs=$(get_cpu_count)
-    log "Building with ${jobs} parallel jobs"
-    if [[ "${VERBOSE}" == "true" ]]; then
-        make -j${jobs} ${target} 2>&1 | tee -a "${SCRIPT_DIR}/logs/build.log"
-    else
-        make -j${jobs} ${target} >> "${SCRIPT_DIR}/logs/build.log" 2>&1
-    fi
+    tool_log "${tool_name}" "Building with ${jobs} parallel jobs" "build"
+    run_command "${tool_name}" "build" "make -j${jobs} ${target}"
     return $?
 }
 
@@ -29,26 +23,17 @@ cmake_build() {
     local src_dir="$1"
     local build_dir="$2"
     local prefix="$3"
-    shift 3
+    local tool_name="${4:-unknown}"
+    shift 4
     local extra_args="$@"
     mkdir -p "${build_dir}"
     cd "${build_dir}"
-    log "Configuring with CMake"
-    if [[ "${VERBOSE}" == "true" ]]; then
-        cmake "${src_dir}" \
-            -DCMAKE_INSTALL_PREFIX="${prefix}" \
-            -DCMAKE_BUILD_TYPE=Release \
-            ${extra_args} 2>&1 | tee -a "${SCRIPT_DIR}/logs/build.log"
-    else
-        cmake "${src_dir}" \
-            -DCMAKE_INSTALL_PREFIX="${prefix}" \
-            -DCMAKE_BUILD_TYPE=Release \
-            ${extra_args} >> "${SCRIPT_DIR}/logs/build.log" 2>&1
-    fi
+    tool_log "${tool_name}" "Configuring with CMake" "build"
+    run_command "${tool_name}" "build" "cmake '${src_dir}' -DCMAKE_INSTALL_PREFIX='${prefix}' -DCMAKE_BUILD_TYPE=Release ${extra_args}"
     if [[ $? -ne 0 ]]; then
         return 1
     fi
-    run_make
+    run_make "" "${tool_name}"
     return $?
 }
 
@@ -61,12 +46,9 @@ clean_build() {
 }
 
 install_make() {
-    log "Installing..."
-    if [[ "${VERBOSE}" == "true" ]]; then
-        make install 2>&1 | tee -a "${SCRIPT_DIR}/logs/install.log"
-    else
-        make install >> "${SCRIPT_DIR}/logs/install.log" 2>&1
-    fi
+    local tool_name="${1:-unknown}"
+    tool_log "${tool_name}" "Installing..." "build"
+    run_command "${tool_name}" "build" "make install"
     return $?
 }
 

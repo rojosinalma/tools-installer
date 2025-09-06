@@ -27,6 +27,41 @@ debug() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] DEBUG: $1" >> "${SCRIPT_DIR}/logs/debug.log"
 }
 
+# Per-tool logging functions
+tool_log() {
+    local tool="$1"
+    local message="$2"
+    local log_type="${3:-install}"
+    echo -e "${GREEN}[INFO]${NC} $message"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $message" >> "${SCRIPT_DIR}/logs/${tool}-${log_type}.log"
+}
+
+tool_error() {
+    local tool="$1"
+    local message="$2"
+    local log_type="${3:-install}"
+    echo -e "${RED}[ERROR]${NC} $message" >&2
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: $message" >> "${SCRIPT_DIR}/logs/${tool}-${log_type}.log"
+}
+
+tool_warn() {
+    local tool="$1"
+    local message="$2"
+    local log_type="${3:-install}"
+    echo -e "${YELLOW}[WARN]${NC} $message"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] WARN: $message" >> "${SCRIPT_DIR}/logs/${tool}-${log_type}.log"
+}
+
+tool_debug() {
+    local tool="$1"
+    local message="$2"
+    local log_type="${3:-install}"
+    if [[ "${VERBOSE}" == "true" ]]; then
+        echo -e "${BLUE}[DEBUG]${NC} $message"
+    fi
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] DEBUG: $message" >> "${SCRIPT_DIR}/logs/${tool}-${log_type}.log"
+}
+
 check_disk_space() {
     local required=$1
     local available=$(df "${HOME}" | awk 'NR==2 {print int($4/1024/1024)}')
@@ -76,4 +111,24 @@ export_tool_env() {
     export PKG_CONFIG_PATH="${tool_dir}/lib/pkgconfig:${tool_dir}/lib64/pkgconfig:${PKG_CONFIG_PATH}"
     export CPATH="${tool_dir}/include:${CPATH}"
     export LIBRARY_PATH="${tool_dir}/lib:${tool_dir}/lib64:${LIBRARY_PATH}"
+}
+
+# Execute command with verbose output showing exact command
+run_command() {
+    local tool_name="$1"
+    local log_type="${2:-build}"
+    local log_file="${SCRIPT_DIR}/logs/${tool_name}-${log_type}.log"
+    shift 2
+    local cmd="$@"
+    
+    if [[ "${VERBOSE}" == "true" ]]; then
+        echo -e "${BLUE}[CMD]${NC} ${cmd}"
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] CMD: ${cmd}" >> "${log_file}"
+        eval "${cmd}" 2>&1 | tee -a "${log_file}"
+        return ${PIPESTATUS[0]}
+    else
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] CMD: ${cmd}" >> "${log_file}"
+        eval "${cmd}" >> "${log_file}" 2>&1
+        return $?
+    fi
 }

@@ -98,7 +98,7 @@ list_tools() {
     echo "  - binutils (${BINUTILS_VERSION})"
     echo "  - make (${MAKE_VERSION})"
     echo "  - openssl (${OPENSSL_VERSION})"
-    echo "  - pkg-config (${PKGCONFIG_VERSION})"
+    echo "  - pkg-config (${PKG_CONFIG_VERSION})"
     echo "  - ccache (${CCACHE_VERSION})"
     echo ""
     echo "Phase 3 - Essential Libraries:"
@@ -132,8 +132,10 @@ download_tool_source() {
     local custom_version="${2:-}"
     
     # Set version variables, use custom version if provided
-    local version_var="${tool^^}_VERSION"
-    local url_var="${tool^^}_URL"
+    local tool_upper="${tool^^}"
+    tool_upper="${tool_upper//-/_}"  # Replace hyphens with underscores
+    local version_var="${tool_upper}_VERSION"
+    local url_var="${tool_upper}_URL"
     local version="${custom_version:-${!version_var}}"
     local base_url="${!url_var}"
     
@@ -209,7 +211,7 @@ download_tool_source() {
         return 0
     fi
     
-    download_file "${base_url}" "${output}" "${tool} ${version}"
+    download_file "${base_url}" "${output}" "${tool} ${version}" "${tool}"
     
     if [[ $? -eq 0 ]]; then
         log "Successfully downloaded ${tool} to ${output}"
@@ -235,21 +237,21 @@ download_only() {
             if [[ -n "${CUSTOM_VERSION}" ]]; then
                 warn "Custom version ${CUSTOM_VERSION} will apply to all Phase 1 tools"
             fi
-            download_tool_source cmake "${CUSTOM_VERSION}"
-            download_tool_source ninja "${CUSTOM_VERSION}"
-            download_tool_source python "${CUSTOM_VERSION}"
+            download_tool_source cmake "${CUSTOM_VERSION}" || true
+            download_tool_source ninja "${CUSTOM_VERSION}" || true
+            download_tool_source python "${CUSTOM_VERSION}" || true
             ;;
         phase2)
             log "Downloading Phase 2: Build from source"
             if [[ -n "${CUSTOM_VERSION}" ]]; then
                 warn "Custom version ${CUSTOM_VERSION} will apply to all Phase 2 tools"
             fi
-            download_tool_source gcc "${CUSTOM_VERSION}"
-            download_tool_source binutils "${CUSTOM_VERSION}"
-            download_tool_source make "${CUSTOM_VERSION}"
-            download_tool_source openssl "${CUSTOM_VERSION}"
-            download_tool_source pkg-config "${CUSTOM_VERSION}"
-            download_tool_source ccache "${CUSTOM_VERSION}"
+            download_tool_source gcc "${CUSTOM_VERSION}" || true
+            download_tool_source binutils "${CUSTOM_VERSION}" || true
+            download_tool_source make "${CUSTOM_VERSION}" || true
+            download_tool_source openssl "${CUSTOM_VERSION}" || true
+            download_tool_source pkgconfig "${CUSTOM_VERSION}" || true
+            download_tool_source ccache "${CUSTOM_VERSION}" || true
             ;;
         phase3)
             log "Downloading Phase 3: Essential libraries"
@@ -257,7 +259,7 @@ download_only() {
                 warn "Custom version ${CUSTOM_VERSION} will apply to all Phase 3 libraries"
             fi
             for lib in zlib libffi readline ncurses bzip2 xz sqlite; do
-                download_tool_source "${lib}" "${CUSTOM_VERSION}"
+                download_tool_source "${lib}" "${CUSTOM_VERSION}" || true
             done
             ;;
         *)
@@ -318,6 +320,9 @@ clean_directories() {
                 local file_count=$(find "${SCRIPT_DIR}/downloads" -type f | wc -l)
                 if [[ $file_count -gt 0 ]]; then
                     local size=$(du -sh "${SCRIPT_DIR}/downloads" | cut -f1)
+                    if [[ "${VERBOSE}" == "true" ]]; then
+                        echo -e "${BLUE}[CMD]${NC} rm -rf '${SCRIPT_DIR}/downloads'/*"
+                    fi
                     rm -rf "${SCRIPT_DIR}/downloads"/*
                     log "Removed $file_count files (${size}) from downloads/"
                 else
@@ -333,6 +338,9 @@ clean_directories() {
                 local dir_count=$(find "${SCRIPT_DIR}/build" -maxdepth 1 -type d ! -path "${SCRIPT_DIR}/build" | wc -l)
                 if [[ $dir_count -gt 0 ]]; then
                     local size=$(du -sh "${SCRIPT_DIR}/build" | cut -f1)
+                    if [[ "${VERBOSE}" == "true" ]]; then
+                        echo -e "${BLUE}[CMD]${NC} rm -rf '${SCRIPT_DIR}/build'/*"
+                    fi
                     rm -rf "${SCRIPT_DIR}/build"/*
                     log "Removed $dir_count build directories (${size}) from build/"
                 else
@@ -345,10 +353,13 @@ clean_directories() {
         logs)
             if [[ -d "${SCRIPT_DIR}/logs" ]]; then
                 log "Cleaning logs directory..."
-                local file_count=$(find "${SCRIPT_DIR}/logs" -type f | wc -l)
+                local file_count=$(find "${SCRIPT_DIR}/logs" -type f -name "*.log" | wc -l)
                 if [[ $file_count -gt 0 ]]; then
                     local size=$(du -sh "${SCRIPT_DIR}/logs" | cut -f1)
-                    rm -rf "${SCRIPT_DIR}/logs"/*
+                    if [[ "${VERBOSE}" == "true" ]]; then
+                        echo -e "${BLUE}[CMD]${NC} rm -f '${SCRIPT_DIR}/logs'/*.log"
+                    fi
+                    rm -f "${SCRIPT_DIR}/logs"/*.log
                     log "Removed $file_count log files (${size}) from logs/"
                 else
                     log "Logs directory is already empty"
