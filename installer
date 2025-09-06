@@ -43,7 +43,7 @@ show_help() {
     cat << HELP
 Core Build Kit Installer
 
-Usage: ./installer.sh [COMMAND] [TARGET] [OPTIONS]
+Usage: ./installer [COMMAND] [TARGET] [OPTIONS]
 
 Commands:
     help              Show this help message
@@ -53,6 +53,7 @@ Commands:
     uninstall TOOL    Remove specified tool
     status            Show installation status
     test TOOL         Test if tool is working
+    clean TARGET      Clean specified directories
 
 Targets:
     all              All tools
@@ -61,18 +62,26 @@ Targets:
     phase3           Essential libraries
     [tool-name]      Specific tool (e.g., cmake, gcc)
 
+Clean Targets:
+    downloads        Remove downloaded source files
+    builds           Remove temporary build directories
+    logs             Remove log files
+    all              Remove all of the above
+
 Options:
     --verbose        Show detailed command output
     --version VER    Override tool version (download only)
 
 Examples:
-    ./installer.sh download all
-    ./installer.sh download cmake --version 3.25.0
-    ./installer.sh install all
-    ./installer.sh install cmake
-    ./installer.sh install phase1 --verbose
-    ./installer.sh status
-    ./installer.sh test gcc
+    ./installer download all
+    ./installer download cmake --version 3.25.0
+    ./installer install all
+    ./installer install cmake
+    ./installer install phase1 --verbose
+    ./installer status
+    ./installer test gcc
+    ./installer clean downloads
+    ./installer clean all
 HELP
 }
 
@@ -300,6 +309,69 @@ install_tool() {
     esac
 }
 
+clean_directories() {
+    local target="$1"
+    case "${target}" in
+        downloads)
+            if [[ -d "${SCRIPT_DIR}/downloads" ]]; then
+                log "Cleaning downloads directory..."
+                local file_count=$(find "${SCRIPT_DIR}/downloads" -type f | wc -l)
+                if [[ $file_count -gt 0 ]]; then
+                    local size=$(du -sh "${SCRIPT_DIR}/downloads" | cut -f1)
+                    rm -rf "${SCRIPT_DIR}/downloads"/*
+                    log "Removed $file_count files (${size}) from downloads/"
+                else
+                    log "Downloads directory is already empty"
+                fi
+            else
+                log "Downloads directory does not exist"
+            fi
+            ;;
+        builds)
+            if [[ -d "${SCRIPT_DIR}/build" ]]; then
+                log "Cleaning build directory..."
+                local dir_count=$(find "${SCRIPT_DIR}/build" -maxdepth 1 -type d ! -path "${SCRIPT_DIR}/build" | wc -l)
+                if [[ $dir_count -gt 0 ]]; then
+                    local size=$(du -sh "${SCRIPT_DIR}/build" | cut -f1)
+                    rm -rf "${SCRIPT_DIR}/build"/*
+                    log "Removed $dir_count build directories (${size}) from build/"
+                else
+                    log "Build directory is already empty"
+                fi
+            else
+                log "Build directory does not exist"
+            fi
+            ;;
+        logs)
+            if [[ -d "${SCRIPT_DIR}/logs" ]]; then
+                log "Cleaning logs directory..."
+                local file_count=$(find "${SCRIPT_DIR}/logs" -type f | wc -l)
+                if [[ $file_count -gt 0 ]]; then
+                    local size=$(du -sh "${SCRIPT_DIR}/logs" | cut -f1)
+                    rm -rf "${SCRIPT_DIR}/logs"/*
+                    log "Removed $file_count log files (${size}) from logs/"
+                else
+                    log "Logs directory is already empty"
+                fi
+            else
+                log "Logs directory does not exist"
+            fi
+            ;;
+        all)
+            log "Cleaning all temporary directories..."
+            clean_directories downloads
+            clean_directories builds
+            clean_directories logs
+            log "All temporary directories cleaned"
+            ;;
+        *)
+            error "Unknown clean target: ${target}"
+            error "Valid targets: downloads, builds, logs, all"
+            exit 1
+            ;;
+    esac
+}
+
 case "${COMMAND}" in
     help) show_help ;;
     list) list_tools ;;
@@ -319,6 +391,10 @@ case "${COMMAND}" in
     uninstall)
         [[ -z "${TARGET}" ]] && error "No tool specified" && exit 1
         uninstall_tool "${TARGET}"
+        ;;
+    clean)
+        [[ -z "${TARGET}" ]] && error "No clean target specified" && exit 1
+        clean_directories "${TARGET}"
         ;;
     *)
         error "Unknown command: ${COMMAND}"

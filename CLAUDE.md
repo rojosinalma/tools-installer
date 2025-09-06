@@ -10,39 +10,48 @@ This is a comprehensive toolkit installer for Debian 9 systems that builds essen
 
 ### Main Operations
 ```bash
-./installer.sh help          # Show help and available commands
-./installer.sh list          # List all available tools and their status
-./installer.sh download all  # Download all tool sources without building
-./installer.sh install all   # Install all tools in phases
-./installer.sh status        # Check installation status of all tools
-./installer.sh test [TOOL]   # Test if a specific tool is working
-./installer.sh uninstall TOOL  # Remove a specific tool
+./installer help          # Show help and available commands
+./installer list          # List all available tools and their status
+./installer download all  # Download all tool sources without building
+./installer install all   # Install all tools in phases
+./installer status        # Check installation status of all tools
+./installer test [TOOL]   # Test if a specific tool is working
+./installer uninstall TOOL  # Remove a specific tool
+./installer clean TARGET  # Clean specified directories (downloads/builds/logs/all)
 ```
 
 ### Download and Installation Targets
 ```bash
-./installer.sh download phase1    # Download Phase 1 sources (cmake, ninja, python)
-./installer.sh download phase2    # Download Phase 2 sources (gcc, make, openssl, etc.)
-./installer.sh download phase3    # Download Phase 3 sources (zlib, libffi, etc.)
-./installer.sh download cmake     # Download specific tool source
+./installer download phase1    # Download Phase 1 sources (cmake, ninja, python)
+./installer download phase2    # Download Phase 2 sources (gcc, make, openssl, etc.)
+./installer download phase3    # Download Phase 3 sources (zlib, libffi, etc.)
+./installer download cmake     # Download specific tool source
 
-./installer.sh install phase1    # Pre-compiled binaries (cmake, ninja, python)
-./installer.sh install phase2    # Build tools (gcc, make, openssl, etc.)
-./installer.sh install phase3    # Essential libraries (zlib, libffi, etc.)
-./installer.sh install cmake     # Install specific tool
+./installer install phase1    # Pre-compiled binaries (cmake, ninja, python)
+./installer install phase2    # Build tools (gcc, make, openssl, etc.)
+./installer install phase3    # Essential libraries (zlib, libffi, etc.)
+./installer install cmake     # Install specific tool
 ```
 
 ### Version Override (Download Only)
 ```bash
-./installer.sh download cmake --version 3.25.0      # Download specific cmake version
-./installer.sh download gcc --version 11.4.0        # Download specific gcc version
-./installer.sh download phase1 --version 3.26.0     # Apply version to all Phase 1 tools (not recommended)
+./installer download cmake --version 3.25.0      # Download specific cmake version
+./installer download gcc --version 11.4.0        # Download specific gcc version
+./installer download phase1 --version 3.26.0     # Apply version to all Phase 1 tools (not recommended)
+```
+
+### Cleaning
+```bash
+./installer clean downloads   # Remove downloaded source files
+./installer clean builds      # Remove temporary build directories  
+./installer clean logs        # Remove log files
+./installer clean all         # Remove all temporary files
 ```
 
 ### Debugging
 ```bash
-./installer.sh download all --verbose # Show detailed download progress
-./installer.sh install all --verbose  # Show detailed command output
+./installer download all --verbose # Show detailed download progress
+./installer install all --verbose  # Show detailed command output
 tail -f logs/install.log              # Monitor installation progress
 tail -f logs/debug.log                # View debug information
 tail -f logs/download.log             # Monitor download progress
@@ -51,7 +60,7 @@ tail -f logs/download.log             # Monitor download progress
 ## Architecture
 
 ### Directory Structure
-- `installer.sh` - Main entry point and command dispatcher
+- `installer` - Main entry point and command dispatcher
 - `config/` - Configuration files (versions.conf, mirrors.conf)
 - `lib/` - Reusable library functions (common, build, download, test)
 - `installers/` - Individual tool installation scripts
@@ -85,8 +94,8 @@ tail -f logs/download.log             # Monitor download progress
 ### Tool Testing
 Each tool has verification tests in `lib/test.sh` that check basic functionality:
 ```bash
-./installer.sh test gcc    # Test GCC installation
-./installer.sh test all    # Test all installed tools
+./installer test gcc    # Test GCC installation
+./installer test all    # Test all installed tools
 ```
 
 ## Environment Setup
